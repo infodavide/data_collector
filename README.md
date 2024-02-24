@@ -36,6 +36,8 @@ Reading is done in a different task (internal _DataReaderTask class) and thread 
 
 If you need to read values using Modbus, you have to implement your own reader class that extends the DataReader abstract class. The instanciation of your reader is specific and should be done before instanciating the collector.
 
+__Take a look at the file 'data_reader/random_data_reader.py' which implements a reader generating random values for variables.__
+
 ## The writers
 
 The writer (DataWriter abstract class) is in charge of writing a list of variables (CollectedVariables class).
@@ -44,7 +46,11 @@ Writing is done in a different task (internal _DataWriterTask class) and is trig
 
 If you need to write the data to a database or NoSQL repository, you have to implement your own writer class that extends the DataWriter abstract class. The instanciation of your writer is specific and should be done before instanciating the collector.
 
+__Take a look at the file 'data_writer/noop_data_writer.py' which implements a writer logging some data of each retrieved variable and value.__
+
 If you need to write synchronously the data, for example in a file, you have to implement your own writer using a synchrization mechanism to avoid concurrent writes on the same output file (No map and reduce mechanism is provided to write  the data in a single thread at the end of the collect).
+
+__Take a look at the file 'data_writer/csv_file_data_writer.py' which implements a writer using a reentrant lock to write a CSV file.__
 
 ## The data collector
 
@@ -62,9 +68,17 @@ Finally, you can complete the data collection using the stop method on the colle
 
 The close method of the collector can called to stop all the contexts, clean up the thread pool, the scheduler.
 
+The events associated with the actions on the collector object can be listened using a derived class of the abstract DataCollectionListener class which defines the following methods:
+- before_close: called before closing the collector object,
+- after_close: called when all the internal objects of the collector have been cleaned up,
+- before_start: called before starting the collect of a context,
+- after_start: called when the collect of a context has been started,
+- before_stop: called before stopping the collect of a context,
+- after_stop: called when the collect of a context has been stopped,
+
+__Take a look at the file 'test/data_collector_test.py' which implements unit tests and build a reader, a writer, a context and the data collector.__
+
 ## On going
 
-The current development is *not fully completed and tested*:
-- the reader and writer tasks have to be completed,
-- the unit tests have to be completed too,
-- a basic example of the use of the collector have to be provided to be used as a template for further implementations.
+The current development is *not fully tested*:
+- the unit tests have to be completed too.

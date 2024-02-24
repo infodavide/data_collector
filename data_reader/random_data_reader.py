@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# -*- coding: utf-*-#!/usr/bin/python
+# -*- coding: utf-*-
 # # -*- coding: utf-*-
 import random
 from datetime import datetime
@@ -36,4 +35,4 @@ class RandomDataReader(DataReader):
         now: datetime = datetime.now()
         for variable in variables:
             variable.set_time(now)
-            variable.set_value(random.uniform(self._min, self._max))
+            variable.set_value(round(random.uniform(self._min, self._max), 2))

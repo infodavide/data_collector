@@ -1,14 +1,21 @@
 #!/usr/bin/python
-# -*- coding: utf-*-#!/usr/bin/python
+# -*- coding: utf-*-
 # # -*- coding: utf-*-
 import logging
 import random
 import time
 import unittest
-from typing import List, Dict
+from typing import List
 from data_collector import DataCollectionContext, Variable, DataCollector, \
-    create_rotating_log, DataReader, DataWriter, CollectedVariable
-from data_readers.random_data_reader import RandomDataReader, RANDOM_DATA_READER_MIN_INTERVAL
+    create_rotating_log, DataReader, DataWriter, DataCollectionListener
+from data_reader.random_data_reader import RandomDataReader, RANDOM_DATA_READER_MIN_INTERVAL
+from data_writer.csv_file_data_writer import CsvFileDataWriter
+from data_writer.noop_data_writer import NoopDataWriter
+from listener.noop_listener import NoopDataCollectionListener
+
+
+def build_listener() -> DataCollectionListener:
+    return NoopDataCollectionListener(logger)
 
 
 def build_context(add_unknown: bool = False) -> DataCollectionContext:
@@ -38,38 +45,10 @@ def build_readers() -> List[DataReader]:
 logger: logging.Logger = create_rotating_log(None, logging.DEBUG)
 
 
-class NoopDataWriter(DataWriter):
-    def __init__(self):
-        """
-        Initialize the writer
-        """
-        self._count: int = 0
-        self._count_by_context_identifiers: Dict[int, int] = dict()
-
-    def get_type(self) -> str:
-        return self.__class__.__name__
-
-    def write(self, values: List[CollectedVariable]) -> None:
-        for cv in values:
-            self._count += 1
-            if cv.get_context_identifier() in self._count_by_context_identifiers.keys():
-                self._count_by_context_identifiers[cv.get_context_identifier()] = self._count_by_context_identifiers[cv.get_context_identifier()] + 1
-            else:
-                self._count_by_context_identifiers[cv.get_context_identifier()] = 1
-            logger.info('Writing %s, %s=%s' % (cv.get_context_identifier(), cv.get_address(), cv.get_value()))
-
-    def get_count(self) -> int:
-        return self._count
-
-    def get_count_of_context(self, context_identifier: int) -> int:
-        if context_identifier in self._count_by_context_identifiers.keys():
-            return self._count_by_context_identifiers[context_identifier]
-        return 0
-
-
 def build_writers() -> List[DataWriter]:
     results: List[DataWriter] = list()
-    results.append(NoopDataWriter())
+    results.append(NoopDataWriter(logger))
+    results.append(CsvFileDataWriter(logger, '/tmp/data_collector.csv'))
     return results
 
 
@@ -83,7 +62,7 @@ class DataCollectorTest(unittest.TestCase):
     def test_start(self):
         context: DataCollectionContext = build_context()
         readers: List[DataReader] = build_readers()
-        collector: DataCollector = DataCollector(logger, readers, build_writers())
+        collector: DataCollector = DataCollector(logger, readers, build_writers(), build_listener())
         collector.start(context)
 
         try:
@@ -95,7 +74,7 @@ class DataCollectorTest(unittest.TestCase):
     def test_stop(self):
         context: DataCollectionContext = build_context()
         readers: List[DataReader] = build_readers()
-        collector: DataCollector = DataCollector(logger, readers, build_writers())
+        collector: DataCollector = DataCollector(logger, readers, build_writers(), build_listener())
         collector.start(context)
         time.sleep(2.0)
         context = collector.stop(context.get_identifier())
@@ -107,7 +86,7 @@ class DataCollectorTest(unittest.TestCase):
     def test_close(self):
         context: DataCollectionContext = build_context()
         readers: List[DataReader] = build_readers()
-        collector: DataCollector = DataCollector(logger, readers, build_writers())
+        collector: DataCollector = DataCollector(logger, readers, build_writers(), build_listener())
         collector.start(context)
         time.sleep(2.0)
         collector.close()
