@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# -*- coding: utf-*-#!/usr/bin/python
+# -*- coding: utf-*-
 # # -*- coding: utf-*-
 import atexit
 import logging
@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from logging.handlers import RotatingFileHandler
 from string import Template
-from typing import Dict, TypeVar, List, Any, Set
+from typing import Dict, List, Any, Set
 from multiprocessing import Pool
 
 
@@ -458,6 +458,7 @@ class _DataCollectorScheduledTask(object):
             scheduler.cancel(self._future)
             self._future = None
 
+    # noinspection PyTypeChecker
     def run(self) -> None:
         """
         Do the collect
@@ -470,7 +471,6 @@ class _DataCollectorScheduledTask(object):
                 scheduler.cancel(self._future)
                 self._future = None
             return
-        now: datetime = datetime.now()
         start_time: float = time.time()
         self._logger.debug('Running...')
         with self._lock:
@@ -503,6 +503,7 @@ class _DataCollectorScheduledTask(object):
             if self._logger.isEnabledFor(logging.DEBUG):
                 self._logger.debug('Completed in %sms' % int((time.time() - start_time) * 1000))
 
+    # noinspection PyTypeChecker
     def append(self, context_wrapper: _DataCollectionContextWrapper) -> int:
         """
         Append the variables of the given wrapper and context
@@ -745,18 +746,22 @@ class _DataReaderTask(object):
         self._reader: DataReader = reader
         self._variables: List[CollectedVariable] = variables
 
+    # noinspection PyTypeChecker
     def run(self) -> None:
         """
         Do the collect
         """
-        scheduler: sched.scheduler = self._collector.get_scheduler()
-        now: datetime = datetime.now()
         start_time: float = time.time()
         if self._logger.isEnabledFor(logging.DEBUG):
             self._logger.debug('Starting read of %s variables for reader: %s...' % (len(self._variables), self._reader.get_type()))
         self._reader.read(self._variables)
         if self._logger.isEnabledFor(logging.DEBUG):
-            self._logger.debug('Read completed')
+            self._logger.debug('Read completed in %sms' % int((time.time() - start_time) * 1000))
+        for writer in self._collector.get_writers():
+            writer_task: _DataWriterTask = _DataWriterTask(self._logger, self._collector, writer, self._variables)
+            self._collector.get_thread_pool().apply_async(writer_task.run())
+        if self._logger.isEnabledFor(logging.DEBUG):
+            self._logger.debug('Completed in %sms' % int((time.time() - start_time) * 1000))
 
 
 class DataWriter(ABC):
@@ -798,11 +803,12 @@ class _DataWriterTask(object):
         """
         Do the writes
         """
-        scheduler: sched.scheduler = self._collector.get_scheduler()
-        now: datetime = datetime.now()
         start_time: float = time.time()
         if self._logger.isEnabledFor(logging.DEBUG):
             self._logger.debug('Starting write of %s variables for writer: %s...' % (len(self._variables), self._writer.get_type()))
+        self._writer.write(self._variables)
+        if self._logger.isEnabledFor(logging.DEBUG):
+            self._logger.debug('Completed in %sms' % int((time.time() - start_time) * 1000))
 
 
 def collected_variable_of(context_identifier: int, source: Variable, value, read_time: datetime) -> CollectedVariable:
@@ -821,9 +827,63 @@ def _thread_initializer():
     threading.current_thread().name = threading.current_thread().name.replace('Thread', 'DataCollector-Thread')
 
 
+class DataCollectionListener(ABC):
+    @abstractmethod
+    def before_close(self, collector) -> None:
+        """
+        Notify closure of the collector
+        :param collector: the collector
+        """
+        pass
+
+    @abstractmethod
+    def after_close(self, collector) -> None:
+        """
+        Notify closure of the collector
+        :param collector: the collector
+        """
+        pass
+
+    @abstractmethod
+    def before_start(self, collector, context: DataCollectionContext) -> None:
+        """
+        Notify the start of the context
+        :param collector: the collector
+        :param context: the context
+        """
+        pass
+
+    @abstractmethod
+    def after_start(self, collector, context: DataCollectionContext) -> None:
+        """
+        Notify the start of the context
+        :param collector: the collector
+        :param context: the context
+        """
+        pass
+
+    @abstractmethod
+    def before_stop(self, collector, context: DataCollectionContext) -> None:
+        """
+        Notify the stop of the context
+        :param collector: the collector
+        :param context: the context
+        """
+        pass
+
+    @abstractmethod
+    def after_stop(self, collector, context: DataCollectionContext) -> None:
+        """
+        Notify the stop of the context
+        :param collector: the collector
+        :param context: the context
+        """
+        pass
+
+
 class DataCollector(object):
     # noinspection PyTypeChecker
-    def __init__(self, logger: logging.Logger, readers: List[DataReader], writers: List[DataWriter]):
+    def __init__(self, logger: logging.Logger, readers: List[DataReader], writers: List[DataWriter], listener: DataCollectionListener = None):
         """
         Initialize the context
         :param logger: the logger
@@ -834,6 +894,7 @@ class DataCollector(object):
         for reader in readers:
             self._readers[reader.get_type()] = reader
         self._writers: List[DataWriter] = writers
+        self._listener: DataCollectionListener = listener
         self._interval_limit_policy: IntervalLimitPolicy = IntervalLimitPolicy.IGNORE
         self._life_duration: int = 0
         self._contexts: Dict[int, _DataCollectionContextWrapper] = dict()
@@ -880,6 +941,8 @@ class DataCollector(object):
                 wrapper.set_life_time(context.get_start_date() + timedelta(0, context.get_life_duration()))
             self._logger.warning('Context life time: %s' % wrapper.get_life_time())
             self._contexts[context.get_identifier()] = wrapper
+            if self._listener is not None:
+                self._listener.before_start(self, context)
             appended: int = self._task.append(wrapper)
             if self._logger.isEnabledFor(logging.DEBUG):
                 self._logger.debug('Appended variables: %s' % appended)
@@ -889,6 +952,8 @@ class DataCollector(object):
                     self._task = _DataCollectorScheduledTask(self._logger, self)
                 self._logger.debug('Setting collector task as active')
                 self._task.set_active(True)
+            if self._listener is not None:
+                self._listener.after_start(self, context)
 
     # noinspection PyTypeChecker
     def stop(self, context_identifier: int, warn: bool = True) -> DataCollectionContext:
@@ -909,12 +974,16 @@ class DataCollector(object):
             self._logger.info('Stopping context: %s' % context_identifier)
             wrapper: _DataCollectionContextWrapper = self._contexts[context_identifier]
             context: DataCollectionContext = wrapper.get_context()
+            if self._listener is not None:
+                self._listener.before_stop(self, context)
             context.set_end_date(datetime.now())
             self._task.remove(wrapper)
             del self._contexts[context_identifier]
             if len(self._contexts) == 0 and self._task.is_active():
                 self._logger.debug('Setting collector task as inactive')
                 self._task.set_active(False)
+            if self._listener is not None:
+                self._listener.after_stop(self, context)
             return context
 
     # noinspection PyTypeChecker
@@ -1077,6 +1146,8 @@ class DataCollector(object):
         """
         with self._lock:
             self._logger.info('Closing collector')
+            if self._listener is not None:
+                self._listener.before_close(self)
             self._logger.info('Stopping contexts: %s...' % (len(self._contexts)))
             identifiers = list()
             for context_identifier in self._contexts.keys():
@@ -1093,6 +1164,8 @@ class DataCollector(object):
             if self._scheduler is not None:
                 self._logger.info('Closing scheduler...')
                 self._scheduler = None
+            if self._listener is not None:
+                self._listener.after_close(self)
 
     def close(self):
         """
