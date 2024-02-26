@@ -698,9 +698,48 @@ class _DataCollectorScheduledTask(object):
         Remove the variables of the given wrapper and context
         :param context_wrapper: the wrapped context
         """
-        self._logger.debug('Removing...')
-        # TODO
-        pass
+        with self._lock:
+            context: DataCollectionContext = context_wrapper.get_context()
+            if self._logger.isEnabledFor(logging.DEBUG):
+                self._logger.debug('Variable(s) before removal: %s' % (self._len_of_variables_by_step_and_reader()))
+            computed_interval: int = -1
+            computed_max_step_value = self._max_step_value
+            for variables_by_reader in self._variables_by_step_and_reader.values():
+                for reader_type in variables_by_reader.keys():
+                    reader: DataReader = self._collector.get_reader(reader_type)
+                    filtered_variables = list(filter(lambda cv: cv.get_context_identifier() != context.get_identifier(), variables_by_reader[reader_type]))
+                    variables_by_reader[reader_type] = filtered_variables
+
+                    for variable in filtered_variables:
+                        computed_interval = self._compute_min_interval(reader.get_min_interval(), computed_interval, variable)
+                        computed_max_step_value = max(computed_max_step_value, variable.get_interval())
+            if self._len_of_variables_by_step_and_reader() == 0:
+                self._interval = 0
+                self._max_step_value = 0
+                self._active = False
+                self._step = 0
+            else:
+                step_to_remove =  list()
+                reader_types_to_remove = list()
+                for step in self._variables_by_step_and_reader.keys():
+                    variables_by_reader = self._variables_by_step_and_reader[step]
+                    reader_types_to_remove.clear()
+                    if len(variables_by_reader) == 0:
+                        step_to_remove.append(step)
+                        continue
+                    for reader_type in variables_by_reader.keys():
+                        if len(variables_by_reader[reader_type]) == 0:
+                            reader_types_to_remove.append(reader_type)
+                    for reader_type in reader_types_to_remove:
+                        del variables_by_reader[reader_type]
+                for step in step_to_remove:
+                    del self._variables_by_step_and_reader[step]
+                # We need to compute the interval to take into account the removal of variables
+                # The step remains unchanged for existing variables
+                self._max_step_value = computed_max_step_value
+                self._interval = computed_interval
+            if self._logger.isEnabledFor(logging.DEBUG):
+                self._logger.debug('Variable(s) after removal: %s' % (self._len_of_variables_by_step_and_reader()))
 
 
 class DataReader(ABC):
