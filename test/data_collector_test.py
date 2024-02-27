@@ -1,6 +1,8 @@
 #!/usr/bin/python
-# -*- coding: utf-*-
-# # -*- coding: utf-*-
+# -*- coding: utf-8 -*-
+"""
+Tests cases on DataCollector class
+"""
 import logging
 import random
 import time
@@ -19,10 +21,8 @@ def build_listener() -> DataCollectionListener:
 
 
 def build_context(add_unknown: bool = False) -> DataCollectionContext:
-    plan: List[Variable] = list()
-    plan.append(Variable(1, str(1), 'float', 'random1', 100))
-    plan.append(Variable(2, str(2), 'float', 'random1', 200))
-    plan.append(Variable(3, str(3), 'float', 'random1', 500))
+    plan: List[Variable] = [Variable(1, str(1), 'float', 'random1', 100), Variable(2, str(2), 'float', 'random1', 200),
+                            Variable(3, str(3), 'float', 'random1', 500)]
     for i in range(4, 15):
         plan.append(Variable(i, str(i), 'float', 'random1', RANDOM_DATA_READER_MIN_INTERVAL * random.randint(1, 5)))
     for i in range(15, 21):
@@ -35,9 +35,7 @@ def build_context(add_unknown: bool = False) -> DataCollectionContext:
 
 
 def build_readers() -> List[DataReader]:
-    results: List[DataReader] = list()
-    results.append(RandomDataReader('random1', 15.0, 18.0))
-    results.append(RandomDataReader('random2', -1.0, 1.0))
+    results: List[DataReader] = [RandomDataReader('random1', 15.0, 18.0), RandomDataReader('random2', -1.0, 1.0)]
     return results
 
 
@@ -46,9 +44,7 @@ logger: logging.Logger = create_rotating_log(None, logging.DEBUG)
 
 
 def build_writers() -> List[DataWriter]:
-    results: List[DataWriter] = list()
-    results.append(NoopDataWriter(logger))
-    results.append(CsvFileDataWriter(logger, '/tmp/data_collector.csv'))
+    results: List[DataWriter] = [NoopDataWriter(logger), CsvFileDataWriter(logger, '/tmp/data_collector.csv')]
     return results
 
 
@@ -57,7 +53,7 @@ class DataCollectorTest(unittest.TestCase):
     # noinspection PyArgumentList
     def setUp(self, *args, **kwargs):
         super(DataCollectorTest, self).setUp(*args, **kwargs)
-        logger.info('=> Starting test: %s' % self)
+        logger.info('=> Starting test: %s', self)
 
     def test_start(self):
         context: DataCollectionContext = build_context()

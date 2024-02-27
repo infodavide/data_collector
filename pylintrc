@@ -13,7 +13,7 @@ ignore=CVS
 
 # Add files or directories matching the regex patterns to the ignore-list. The
 # regex matches against paths and can be in Posix or Windows format.
-ignore-paths=
+ignore-paths=test
 
 # Files or directories matching the regex patterns are skipped. The regex
 # matches against base names, not paths.
@@ -98,7 +98,6 @@ enable=
 disable=
     attribute-defined-outside-init,
     invalid-name,
-    missing-docstring,
     protected-access,
     too-few-public-methods,
     # handled by black
@@ -107,6 +106,10 @@ disable=
     fixme,
     cyclic-import,
     import-error,
+    unused-argument,
+    consider-iterating-dictionary,
+    consider-using-assignment-expr,
+    no-name-in-module,
 
 
 [REPORTS]
@@ -454,7 +457,7 @@ max-bool-expr=5
 # ignore when counting public methods (see R0903).
 exclude-too-few-public-methods=
 
-max-complexity=10
+max-complexity=20
 
 [CLASSES]
 
@@ -518,7 +521,7 @@ preferred-modules=
 
 # Exceptions that will emit a warning when being caught. Defaults to
 # "Exception"
-overgeneral-exceptions=Exception
+overgeneral-exceptions=builtins.Exception
 
 
 [TYPING]

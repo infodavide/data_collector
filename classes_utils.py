@@ -1,5 +1,7 @@
-# -*- coding: utf-*-
-# utilities for classes
+# -*- coding: utf-8 -*-
+"""
+Utilities for classes
+"""
 import importlib
 import os
 import sys
@@ -23,7 +25,6 @@ def import_files_of_dir(path: str) -> None:
     """
     Import .py files of the given directory
     :param path: the directory
-    :return:
     """
     __globals = globals()
     if not os.path.isdir(path):
@@ -34,6 +35,6 @@ def import_files_of_dir(path: str) -> None:
             continue
         mod_name = file[:-3]  # strip .py at the end
         if mod_name not in __globals:
-            print('Importing: ' + mod_name)
+            print('Importing: %s' % mod_name)
             __globals[mod_name] = importlib.import_module(mod_name)
             __import__(mod_name)
