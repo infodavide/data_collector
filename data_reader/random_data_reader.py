@@ -4,8 +4,6 @@ Random data reader that can be configured to define the minimum and maximum boun
 """
 import random
 from datetime import datetime
-from typing import List
-
 from data_collector import DataReader, CollectedVariable
 
 RANDOM_DATA_READER_TYPE: str = "random"
@@ -44,7 +42,7 @@ class RandomDataReader(DataReader):
         """
         return RANDOM_DATA_READER_MIN_INTERVAL
 
-    def read(self, variables: List[CollectedVariable]) -> None:
+    def read(self, variables: list[CollectedVariable]) -> None:
         """
        See DataReader class
        :param variables: the collected variables used to set the results

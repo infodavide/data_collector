@@ -11,7 +11,6 @@ import logging
 import os.path
 import threading
 from pathlib import Path
-from typing import List
 from data_collector import DataWriter, CollectedVariable
 
 
@@ -51,7 +50,7 @@ class CsvFileDataWriter(DataWriter):
         """
         return self.__class__.__name__
 
-    def write(self, values: List[CollectedVariable]) -> None:
+    def write(self, values: list[CollectedVariable]) -> None:
         """
         See DataWriter class
         :param values: the collected values

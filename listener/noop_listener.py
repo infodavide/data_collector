@@ -4,7 +4,6 @@ Listener used to log events
 """
 import logging
 from typing import Any
-
 from data_collector import DataCollectionListener, DataCollectionContext
 
 

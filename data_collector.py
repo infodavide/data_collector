@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from logging.handlers import RotatingFileHandler
 from string import Template
-from typing import Dict, List, Any, Set
+from typing import Any
 from multiprocessing import Pool
 
 
@@ -232,7 +232,7 @@ class DataCollectionContext:
     The context of the data collection
     """
     # noinspection PyTypeChecker
-    def __init__(self, identifier: int, interval: int, plan: List[Variable]):
+    def __init__(self, identifier: int, interval: int, plan: list[Variable]):
         """
         Initialize the context
         :param identifier: the identifier
@@ -242,7 +242,7 @@ class DataCollectionContext:
         self._identifier: int = identifier
         self._interval: int = interval
         self._min_interval: int = 100
-        self._plan: List[Variable] = plan
+        self._plan: list[Variable] = plan
         self._start_date: datetime = None
         self._end_date: datetime = None
         self._life_duration: int = 0
@@ -297,7 +297,7 @@ class DataCollectionContext:
         """
         return self._retention
 
-    def get_plan(self) -> List[Variable]:
+    def get_plan(self) -> list[Variable]:
         """
         Return the data collection plan describing the variables to collect.
         :return: the data collection plan
@@ -363,7 +363,7 @@ class DataCollectionContext:
             raise ValueError("An error occurred", "Invalid value", value)
         self._retention = value
 
-    def set_plan(self, value: List[Variable]) -> None:
+    def set_plan(self, value: list[Variable]) -> None:
         """
         Set the data collection plan
         :param value: the data collection plan
@@ -445,7 +445,7 @@ class _DataCollectorScheduledTask:
         self._active: bool = False
         self._lock: threading.RLock = threading.RLock()
         self._future: sched.Event = None
-        self._variables_by_step_and_reader: Dict[int, Dict[str, List[CollectedVariable]]] = {}
+        self._variables_by_step_and_reader: dict[int, dict[str, list[CollectedVariable]]] = {}
         self._interval: int = 0
         self._max_step_value: int = 0
         self._step: int = 0
@@ -502,7 +502,7 @@ class _DataCollectorScheduledTask:
                 return
             scheduler.enter(interval, 1, self.run)
             self._logger.debug('Getting variables at step: %s', step)
-            variables_by_reader: Dict[str, List[CollectedVariable]] = self._get_variables_at_step(step)
+            variables_by_reader: dict[str, list[CollectedVariable]] = self._get_variables_at_step(step)
             step += interval
             if step >= self._max_step_value:
                 step = 0
@@ -514,10 +514,10 @@ class _DataCollectorScheduledTask:
                     scheduler.cancel(self._future)
                     self._future = None
                 return
-            for reader_type in variables_by_reader.keys():
+            for reader_type, variables in variables_by_reader.items():
                 self._logger.debug('Creating a new task to read variables associated to reader of type: %s', reader_type)
                 reader: DataReader = self._collector.get_reader(reader_type)
-                reader_task: _DataReaderTask = _DataReaderTask(self._logger, self._collector, reader, variables_by_reader[reader_type])
+                reader_task: _DataReaderTask = _DataReaderTask(self._logger, self._collector, reader, variables)
                 self._collector.get_thread_pool().apply_async(reader_task.run())
             if self._logger.isEnabledFor(logging.DEBUG):
                 self._logger.debug('Completed in %sms', int((time.time() - start_time) * 1000))
@@ -535,7 +535,7 @@ class _DataCollectorScheduledTask:
             context: DataCollectionContext = context_wrapper.get_context()
             computed_interval: int = self._interval
             computed_max_step_value: int = self._max_step_value
-            variables: List[CollectedVariable] = []
+            variables: list[CollectedVariable] = []
             if self._logger.isEnabledFor(logging.DEBUG):
                 self._logger.debug('Variable(s) before appending: %s, appending %s variables', self._len_of_variables_by_step_and_reader(), len(context.get_plan()))
             for variable in context.get_plan():
@@ -607,9 +607,9 @@ class _DataCollectorScheduledTask:
         else:
             result = math.gcd(min_interval, cv.get_interval())
         if result < reader_min_interval:
-            message = 'Interval limit %sms reached (%sms) by variable: %s (%s)' % (reader_min_interval, cv.get_interval(), cv.get_address(), cv.get_identifier())
+            message = f'Interval limit {reader_min_interval}ms reached ({cv.get_interval()}ms) by variable: {cv.get_address()} ({cv.get_identifier()})'
         elif result < MINIMUM_FREQUENCY_VALUE:
-            message = 'Interval limit %sms reached (%sms) by variable: %s (%s)' % (MINIMUM_FREQUENCY_VALUE, cv.get_interval(), cv.get_address(), cv.get_identifier())
+            message = f'Interval limit {MINIMUM_FREQUENCY_VALUE}ms reached ({cv.get_interval()}ms) by variable: {cv.get_address()} ({cv.get_identifier()})'
         else:
             return result
         self._logger.warning(message)
@@ -663,18 +663,18 @@ class _DataCollectorScheduledTask:
                         return True
         return False
 
-    def _get_variables_at_step(self, step: int) -> Dict[str, List[CollectedVariable]]:
+    def _get_variables_at_step(self, step: int) -> dict[str, list[CollectedVariable]]:
         """
         Retrieve the collected variables for the given step
         :param step: the step
         :return: the dictionary of list of variables indexed by the type of the readers
         """
         with self._lock:
-            result: Dict[str, List[CollectedVariable]] = {}
-            contexts_to_stop: Set[int] = set()
+            result: dict[str, list[CollectedVariable]] = {}
+            contexts_to_stop: set[int] = set()
             if step not in self._variables_by_step_and_reader:
                 return result
-            variables_by_reader: Dict[str, List[CollectedVariable]] = self._variables_by_step_and_reader[step]
+            variables_by_reader: dict[str, list[CollectedVariable]] = self._variables_by_step_and_reader[step]
             del self._variables_by_step_and_reader[step]
             if self._logger.isEnabledFor(logging.DEBUG):
                 self._logger.debug('Preprocessing %s variables(s) for step: %s before reading', self._len_of_variables_by_step(step), step)
@@ -717,8 +717,8 @@ class _DataCollectorScheduledTask:
                 self._collector.stop(context_identifier)
             if self._logger.isEnabledFor(logging.DEBUG):
                 count: int = 0
-                for reader_type in result.keys():
-                    count += len(result[reader_type])
+                for reader_type, variables in result.items():
+                    count += len(variables)
                 self._logger.debug("%s variable(s) to read for step: %s", count, step)
             return result
 
@@ -773,14 +773,13 @@ class _DataCollectorScheduledTask:
             else:
                 step_to_remove = []
                 reader_types_to_remove = []
-                for step in self._variables_by_step_and_reader.keys():
-                    variables_by_reader = self._variables_by_step_and_reader[step]
+                for step, variables_by_reader in self._variables_by_step_and_reader.items():
                     reader_types_to_remove.clear()
                     if len(variables_by_reader) == 0:
                         step_to_remove.append(step)
                         continue
-                    for reader_type in variables_by_reader.keys():
-                        if len(variables_by_reader[reader_type]) == 0:
+                    for reader_type, variable in variables_by_reader.items():
+                        if len(variable) == 0:
                             reader_types_to_remove.append(reader_type)
                     for reader_type in reader_types_to_remove:
                         del variables_by_reader[reader_type]
@@ -813,7 +812,7 @@ class DataReader(ABC):
         """
 
     @abstractmethod
-    def read(self, variables: List[CollectedVariable]) -> None:
+    def read(self, variables: list[CollectedVariable]) -> None:
         """
         Read the values
         :param variables: the variables to read
@@ -824,7 +823,7 @@ class _DataReaderTask:
     """
     The task used to read the values (for the current step) for a specific reader and then trigger the writer task.
     """
-    def __init__(self, logger: logging.Logger, collector, reader: DataReader, variables: List[CollectedVariable]):
+    def __init__(self, logger: logging.Logger, collector, reader: DataReader, variables: list[CollectedVariable]):
         """
         Initialize the task
         :param logger: the parent logger
@@ -838,7 +837,7 @@ class _DataReaderTask:
             self._logger.setLevel(logger.level)
         self._collector: DataCollector = collector
         self._reader: DataReader = reader
-        self._variables: List[CollectedVariable] = variables
+        self._variables: list[CollectedVariable] = variables
 
     # noinspection PyTypeChecker
     def run(self) -> None:
@@ -870,7 +869,7 @@ class DataWriter(ABC):
         """
 
     @abstractmethod
-    def write(self, values: List[CollectedVariable]) -> None:
+    def write(self, values: list[CollectedVariable]) -> None:
         """
         write the values
         :param values: the values associated to their addresses
@@ -881,7 +880,7 @@ class _DataWriterTask:
     """
     The task used to write the collected variables to a specific writer
     """
-    def __init__(self, logger: logging.Logger, collector, writer: DataWriter, variables: List[CollectedVariable]):
+    def __init__(self, logger: logging.Logger, collector, writer: DataWriter, variables: list[CollectedVariable]):
         """
         Initialize the task
         :param logger: the parent logger
@@ -895,7 +894,7 @@ class _DataWriterTask:
             self._logger.setLevel(logger.level)
         self._collector: DataCollector = collector
         self._writer: DataWriter = writer
-        self._variables: List[CollectedVariable] = variables
+        self._variables: list[CollectedVariable] = variables
 
     def run(self) -> None:
         """
@@ -984,21 +983,21 @@ class DataCollector:
     Main class used to start, pause, resume and stop one (or more) data collections
     """
     # noinspection PyTypeChecker
-    def __init__(self, logger: logging.Logger, readers: List[DataReader], writers: List[DataWriter], listener: DataCollectionListener = None):
+    def __init__(self, logger: logging.Logger, readers: list[DataReader], writers: list[DataWriter], listener: DataCollectionListener = None):
         """
         Initialize the context
         :param logger: the logger
         """
         self._logger: logging.Logger = logger
         self._logger.info('Initializing %s', self.__class__.__name__)
-        self._readers: Dict[str, DataReader] = {}
+        self._readers: dict[str, DataReader] = {}
         for reader in readers:
             self._readers[reader.get_type()] = reader
-        self._writers: List[DataWriter] = writers
+        self._writers: list[DataWriter] = writers
         self._listener: DataCollectionListener = listener
         self._interval_limit_policy: IntervalLimitPolicy = IntervalLimitPolicy.IGNORE
         self._life_duration: int = 0
-        self._contexts: Dict[int, _DataCollectionContextWrapper] = {}
+        self._contexts: dict[int, _DataCollectionContextWrapper] = {}
         self._lock: threading.RLock = threading.RLock()
         # pylint: disable=consider-using-with
         self._thread_pool: Pool = Pool(initializer=_thread_initializer, maxtasksperchild=5)
@@ -1204,7 +1203,7 @@ class DataCollector:
             return self._readers[reader_type]
         return None
 
-    def get_writers(self) -> List[DataWriter]:
+    def get_writers(self) -> list[DataWriter]:
         """
         Return the writers
         :return: the writers

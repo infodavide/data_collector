@@ -6,13 +6,8 @@ import importlib
 import os
 import sys
 
-from typing import Dict, Set
 
-DictOfTypes = Dict[str, type]
-SetOfTypes = Set[type]
-
-
-def subclasses_of(cls) -> SetOfTypes:
+def subclasses_of(cls) -> set[type]:
     """
     Return the subclasses of the given class
     :param cls: the base class
@@ -35,6 +30,5 @@ def import_files_of_dir(path: str) -> None:
             continue
         mod_name = file[:-3]  # strip .py at the end
         if mod_name not in __globals:
-            print('Importing: %s' % mod_name)
             __globals[mod_name] = importlib.import_module(mod_name)
             __import__(mod_name)

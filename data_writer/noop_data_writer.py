@@ -3,8 +3,6 @@
 Basic reader used to log the context identifier, the address of the variable and the value
 """
 import logging
-from typing import Dict, List
-
 from data_collector import DataWriter, CollectedVariable
 
 
@@ -21,7 +19,7 @@ class NoopDataWriter(DataWriter):
             self._logger.addHandler(handler)
             self._logger.setLevel(logger.level)
         self._count: int = 0
-        self._count_by_context_identifiers: Dict[int, int] = {}
+        self._count_by_context_identifiers: dict[int, int] = {}
 
     def get_type(self) -> str:
         """
@@ -30,7 +28,7 @@ class NoopDataWriter(DataWriter):
         """
         return self.__class__.__name__
 
-    def write(self, values: List[CollectedVariable]) -> None:
+    def write(self, values: list[CollectedVariable]) -> None:
         """
         See DataWriter class
         :param values: the collected values
