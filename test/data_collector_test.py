@@ -1,11 +1,12 @@
 #!/usr/bin/python
-# -*- coding: utf-*-
-# # -*- coding: utf-*-
+# -*- coding: utf-8 -*-
+"""
+Tests cases on DataCollector class
+"""
 import logging
 import random
 import time
 import unittest
-from typing import List
 from data_collector import DataCollectionContext, Variable, DataCollector, \
     create_rotating_log, DataReader, DataWriter, DataCollectionListener
 from data_reader.random_data_reader import RandomDataReader, RANDOM_DATA_READER_MIN_INTERVAL
@@ -15,14 +16,21 @@ from listener.noop_listener import NoopDataCollectionListener
 
 
 def build_listener() -> DataCollectionListener:
+    """
+    Build the noop listener
+    :return: the noop listener
+    """
     return NoopDataCollectionListener(logger)
 
 
 def build_context(add_unknown: bool = False) -> DataCollectionContext:
-    plan: List[Variable] = list()
-    plan.append(Variable(1, str(1), 'float', 'random1', 100))
-    plan.append(Variable(2, str(2), 'float', 'random1', 200))
-    plan.append(Variable(3, str(3), 'float', 'random1', 500))
+    """
+    Build the context
+    :param add_unknown: flag describing if some variables using an unknown reader type must be used or not
+    :return: the context
+    """
+    plan: list[Variable] = [Variable(1, str(1), 'float', 'random1', 100), Variable(2, str(2), 'float', 'random1', 200),
+                            Variable(3, str(3), 'float', 'random1', 500)]
     for i in range(4, 15):
         plan.append(Variable(i, str(i), 'float', 'random1', RANDOM_DATA_READER_MIN_INTERVAL * random.randint(1, 5)))
     for i in range(15, 21):
@@ -34,10 +42,12 @@ def build_context(add_unknown: bool = False) -> DataCollectionContext:
     return result
 
 
-def build_readers() -> List[DataReader]:
-    results: List[DataReader] = list()
-    results.append(RandomDataReader('random1', 15.0, 18.0))
-    results.append(RandomDataReader('random2', -1.0, 1.0))
+def build_readers() -> list[DataReader]:
+    """
+    Build the readers
+    :return: the random readers
+    """
+    results: list[DataReader] = [RandomDataReader('random1', 15.0, 18.0), RandomDataReader('random2', -1.0, 1.0)]
     return results
 
 
@@ -45,23 +55,35 @@ def build_readers() -> List[DataReader]:
 logger: logging.Logger = create_rotating_log(None, logging.DEBUG)
 
 
-def build_writers() -> List[DataWriter]:
-    results: List[DataWriter] = list()
-    results.append(NoopDataWriter(logger))
-    results.append(CsvFileDataWriter(logger, '/tmp/data_collector.csv'))
+def build_writers() -> list[DataWriter]:
+    """
+    Build the writers
+    :return: the writers
+    """
+    results: list[DataWriter] = [NoopDataWriter(logger), CsvFileDataWriter(logger, '/tmp/data_collector.csv')]
     return results
 
 
 class DataCollectorTest(unittest.TestCase):
-
+    """
+    The test suite for DataCollector class
+    """
     # noinspection PyArgumentList
-    def setUp(self, *args, **kwargs):
-        super(DataCollectorTest, self).setUp(*args, **kwargs)
-        logger.info('=> Starting test: %s' % self)
+    def setUp(self, *args, **kwargs) -> None:
+        """
+        Initialize test case
+        :param args: arguments
+        :param kwargs: arguments
+        """
+        super().setUp(*args, **kwargs)
+        logger.info('=> Starting test: %s', self)
 
-    def test_start(self):
+    def test_start(self) -> None:
+        """
+        Test the start of a context
+        """
         context: DataCollectionContext = build_context()
-        readers: List[DataReader] = build_readers()
+        readers: list[DataReader] = build_readers()
         collector: DataCollector = DataCollector(logger, readers, build_writers(), build_listener())
         collector.start(context)
 
@@ -71,9 +93,12 @@ class DataCollectorTest(unittest.TestCase):
             if collector is not None and context is not None:
                 collector.stop(context.get_identifier())
 
-    def test_stop(self):
+    def test_stop(self) -> None:
+        """
+        Test the stop of a context
+        """
         context: DataCollectionContext = build_context()
-        readers: List[DataReader] = build_readers()
+        readers: list[DataReader] = build_readers()
         collector: DataCollector = DataCollector(logger, readers, build_writers(), build_listener())
         collector.start(context)
         time.sleep(2.0)
@@ -83,9 +108,12 @@ class DataCollectorTest(unittest.TestCase):
         self.assertIsNotNone(context.get_end_date())
         self.assertFalse(collector.is_context_running(context.get_identifier()))
 
-    def test_close(self):
+    def test_close(self) -> None:
+        """
+        Test the close of the collector
+        """
         context: DataCollectionContext = build_context()
-        readers: List[DataReader] = build_readers()
+        readers: list[DataReader] = build_readers()
         collector: DataCollector = DataCollector(logger, readers, build_writers(), build_listener())
         collector.start(context)
         time.sleep(2.0)
