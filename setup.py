@@ -21,6 +21,6 @@ setup(
     author='David R', 
     author_email='contact@infodavid.org', 
     license=license_content, 
-    packages=find_packages(exclude=('tests', 'docs'), 
+    packages=find_packages(exclude=('tests', 'docs')),
     zip_safe=False
 )
