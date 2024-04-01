@@ -3,21 +3,17 @@
 """
 Setup
 """
-import markdown
 from setuptools import setup, find_packages
-from bs4 import BeautifulSoup
 
 with open('README.md', encoding='utf-8') as f:
-    html = markdown.markdown(f.read())
-    soup = BeautifulSoup(html, features='html.parser')
-    readme_content = soup.get_text()
+    readme_content = f.read()
 
 with open('LICENSE', encoding='utf-8') as f:
     license_content = f.read()
 
 setup(
     name='variables_collector', 
-    version='1.0.1',
+    version='1.0.0',
     description='Variables collector', 
     long_description=readme_content,
     url='https://github.com/infodavide/data_collector',
